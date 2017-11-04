@@ -17,6 +17,15 @@
     "sarg": "^1.0.8",
     "sinon": "^4.1.0"
   },
+  "keywords": [
+    "history",
+    "routing",
+    "router",
+    "route",
+    "react",
+    "simple",
+    "lightweight"
+  ],
   "main": "lib/index.js",
   "license": "MIT",
   "name": "halter",
@@ -25,11 +34,15 @@
   "directories": {
     "test": "test"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VictorQueiroz/halter.git"
+  },
   "dependencies": {
     "babel-runtime": "^6.26.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "make test"
   },
   "author": "Victor Queiroz <victorcqueirozg@gmail.com>"
 }
