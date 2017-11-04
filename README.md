@@ -1,4 +1,4 @@
-# halter
+# halter ![Travis CI build](https://travis-ci.org/VictorQueiroz/halter.svg?branch=master)
 
 Simple JS router with support for HTML5 history
 
