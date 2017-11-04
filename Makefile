@@ -16,6 +16,7 @@ test:
 		--bail
 
 release: test
-	NODE_ENV=production ./node_modules/.bin/babel src -d lib
+	NODE_ENV=production ./node_modules/.bin/babel src -d lib && \
+	echo 'success!'
 
 .PHONY: release tdd test
