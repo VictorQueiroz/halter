@@ -1,6 +1,6 @@
 tdd:
 	./node_modules/.bin/sarg \
-		--require babel-register \
+		--require @babel/register \
 		-w test,src \
 		-r test \
 		--ignore=test/history-fake.js \
@@ -9,7 +9,7 @@ tdd:
 
 test:
 	./node_modules/.bin/sarg \
-		--require babel-register \
+		--require @babel/register \
 		-r test \
 		--ignore=test/history-fake.js \
 		--ignore=test/react-components.js \
