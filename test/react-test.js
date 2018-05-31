@@ -45,7 +45,8 @@ exports['it should render index when /'] = async function() {
         <Home location={{
             path: '/',
             originalRoute: '/',
-            params: {}
+            params: {},
+            query: {}
         }}/>
     ));
 };
@@ -70,7 +71,8 @@ exports['it should render /books/100'] = async function() {
                 originalRoute: '/books/{id:[0-9]+}',
                 params: {
                     id: '100'
-                }
+                },
+                query: {}
             }}
         />
     ));
@@ -104,6 +106,7 @@ exports['it should redirect using onBefore() and replace state option'] = async 
             location={{
                 originalRoute: '/b/{id:[0-9]+}',
                 path: '/b/100',
+                query: {},
                 params: {
                     id: '100'
                 }
@@ -138,7 +141,8 @@ exports['it should support nested routes /admin/books/100'] = async function() {
         path: '/admin/books/100',
         params: {
             id: '100'
-        }
+        },
+        query: {}
     };
 
     assert(wrapper.update().first().equals(
@@ -169,21 +173,26 @@ exports['it should support labeled routes approach'] = async function() {
 
     await wrapper.instance()._initPromise;
 
-    assert(wrapper.update().equals(<AppWrapper location={{originalRoute: '/', path: '/', params:{}}}>
-        <Home location={{originalRoute: '/', path: '/', params:{}}}/>
+    const paths = {
+        index: {originalRoute: '/', path: '/', params:{}, query: {}},
+        admin: {originalRoute: '/admin', path: '/admin', params:{}, query: {}}
+    }
+
+    assert(wrapper.update().equals(<AppWrapper location={paths.index}>
+        <Home location={paths.index}/>
     </AppWrapper>));
 
     await router.pushStateByLabel({}, '', 'app.admin');
 
-    assert(wrapper.update().equals(<AppWrapper location={{originalRoute: '/admin', path: '/admin', params:{}}}>
-        <Admin location={{originalRoute: '/admin', path: '/admin', params:{}}} />
+    assert(wrapper.update().equals(<AppWrapper location={paths.admin}>
+        <Admin location={paths.admin} />
     </AppWrapper>));
 
     await router.pushStateByLabel({}, '', 'app.index');
     await wait();
 
-    assert(wrapper.update().equals(<AppWrapper location={{originalRoute: '/', path: '/', params:{}}}>
-        <Home location={{originalRoute: '/', path: '/', params:{}}}/>
+    assert(wrapper.update().equals(<AppWrapper location={paths.index}>
+        <Home location={paths.index}/>
     </AppWrapper>));
 };
 
@@ -212,6 +221,7 @@ exports['it should render special parent for particular sets of routes'] = async
 
     const location1 = {
         path: '/',
+        query: {},
         originalRoute: '/',
         params: {}
     };
@@ -224,6 +234,7 @@ exports['it should render special parent for particular sets of routes'] = async
 
     const location2 = {
         path: '/login',
+        query: {},
         originalRoute: '/login',
         params: {}
     };
@@ -260,6 +271,7 @@ exports['it should execute all nested routes `onBefore` functions in the right o
 
     const argument = {
         path: '/',
+        query: {},
         originalRoute: '/',
         params: {}
     };
@@ -297,6 +309,7 @@ exports['it should support deep nested routes'] = async function() {
     const location = {
         path: '/app/home',
         originalRoute: '/app/home',
+        query: {},
         params: {}
     };
 

@@ -22,7 +22,7 @@ class HistoryBrowser extends HistoryBase {
     }
 
     getAbsolutePath(){
-        return this.location.pathname;
+        return this.location.pathname + this.location.search;
     }
 
     pushState(state, title, path){

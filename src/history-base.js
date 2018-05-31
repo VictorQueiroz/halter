@@ -14,6 +14,9 @@ class HistoryBase extends EventEmitter {
     getAbsolutePath(){
     }
 
+    getSearch() {
+    }
+
     pushState(state, title, path){
     }
 

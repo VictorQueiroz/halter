@@ -82,6 +82,7 @@ exports['it should redirect to route with params'] = async function() {
 
     assert(newLoginCallback.calledWith({
         path: '/posts/100',
+        query: {},
         originalRoute: '/posts/{id:[0-9]+}',
         params: {
             id: '100'

@@ -29,6 +29,28 @@ exports['it should match /'] = async function() {
     assert.equal(1, callback.callCount);
 };
 
+exports['it should match / search'] = async function() {
+    const callback = sinon.spy();
+    const booksCallback = sinon.spy();
+
+    await createRouter({
+        path: '/',
+        callback
+    }, {
+        path: '/books/{id:[0-9]+}',
+        callback: booksCallback
+    }).pushState({}, '', '/books/1002?q_comments=Title');
+
+    assert(callback.notCalled);
+    assert(booksCallback.calledWith({
+        params: { id: '1002' },
+        path: '/books/1002',
+        originalRoute: '/books/{id:[0-9]+}',
+        query: { q_comments: 'Title' }
+    }));
+    assert.equal(1, booksCallback.callCount);
+};
+
 exports['it should not match /books/100'] = async function() {
     const indexCallback = sinon.spy();
     const booksCallback = sinon.spy();
@@ -80,6 +102,7 @@ exports['it should call callback with route params'] = async function() {
 
     assert(indexCallback.calledWith({
         path: '/books/3991',
+        query: {},
         originalRoute: '/books/{id:[0-9]+}',
         params: {
             id: '3991'
@@ -118,6 +141,7 @@ exports['it should call onBefore() with match'] = async function() {
 
     assert.deepEqual(onBeforeCallback.args[0][0], {
         path: '/books/100',
+        query: {},
         originalRoute: '/books/{id:[0-9]+}',
         params: { id: '100' }
     });

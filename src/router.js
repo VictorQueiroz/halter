@@ -1,3 +1,5 @@
+import url from 'url';
+import querystring from 'querystring';
 import Pointer from './pointer';
 
 class Router {
@@ -37,13 +39,19 @@ class Router {
     }
 
     async onChangePath(newPath){
+        const parsedUrl = url.parse(newPath);
+
         for(let i = 0; i < this.callbackChange.length; i++)
             this.callbackChange[i](newPath);
 
-        const match = this.pointer.match(newPath);
+        let match = this.pointer.match(parsedUrl.pathname);
 
         if(!match)
             return false;
+
+        match = Object.assign({}, match, {
+            query: querystring.parse(parsedUrl.query)
+        });
 
         const { callback, onBefore } = this.routes.find(route => (
             route.path === match.originalRoute

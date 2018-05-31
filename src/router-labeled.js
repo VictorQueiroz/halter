@@ -21,18 +21,18 @@ class RouterLabeled extends Router {
         return this;
     }
 
-    pushStateByLabel(state, title, label, params){
+    pushStateByLabel(state, title, label, params, query = ''){
         const route = this.getRouteByLabel(label);
         const newPath = this.pointer.get(route.path).resolve(params);
 
-        return this.pushState(state, title, newPath);
+        return this.pushState(state, title, newPath + (query ? '?' + query : ''));
     }
 
-    replaceStateByLabel(state, title, label, params){
+    replaceStateByLabel(state, title, label, params, query = ''){
         const route = this.getRouteByLabel(label);
         const newPath = this.pointer.get(route.path).resolve(params);
 
-        return this.replaceState(state, title, newPath);
+        return this.replaceState(state, title, newPath + (query ? '?' + query : ''));
     }
 
     async executeOnBefore(onBefore){
