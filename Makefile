@@ -9,14 +9,14 @@ tdd:
 
 test:
 	./node_modules/.bin/sarg \
-		--require @babel/register \
-		-r test \
+		--require ts-node/register \
 		--ignore=test/history-fake.js \
 		--ignore=test/react-components.js \
-		--bail
+		--bail \
+		"test/**/*.ts"
 
 release: test
-	NODE_ENV=production ./node_modules/.bin/babel src -d lib && \
+	npx tsc && \
 	echo 'success!'
 
 .PHONY: release tdd test

@@ -1,7 +1,9 @@
 import HistoryBase from './history-base';
 
-class HistoryBrowser extends HistoryBase {
-    constructor(context){
+export default class HistoryBrowser extends HistoryBase {
+    private location: any;
+    private history: any;
+    constructor(private context: any) {
         super();
         this.context = context;
         this.location = context.location;
@@ -9,29 +11,31 @@ class HistoryBrowser extends HistoryBase {
         this.onPopState = this.onPopState.bind(this);
     }
 
-    onPopState() {
+    public getSearch() {
+        return '';
+    }
+
+    public onPopState() {
         this.emit('popstate');
     }
 
-    init(){
+    public init() {
         this.context.addEventListener('popstate', this.onPopState);
     }
 
-    destroy(){
+    public destroy() {
         this.context.removeEventListener('popstate', this.onPopState);
     }
 
-    getAbsolutePath(){
+    public getAbsolutePath() {
         return this.location.pathname + this.location.search;
     }
 
-    pushState(state, title, path){
+    public pushState(state: any, title: string, path: string) {
         this.history.pushState(state, title, path);
     }
 
-    replaceState(state, title, path){
+    public replaceState(state: any, title: string, path: string) {
         this.history.replaceState(state, title, path);
     }
 }
-
-export default HistoryBrowser;

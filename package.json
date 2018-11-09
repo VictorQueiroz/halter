@@ -1,20 +1,14 @@
 {
   "devDependencies": {
-    "@babel/cli": "^7.0.0-beta.49",
-    "@babel/core": "^7.0.0-beta.49",
-    "@babel/plugin-transform-react-jsx": "^7.0.0-beta.49",
-    "@babel/preset-env": "^7.0.0-beta.49",
-    "@babel/register": "^7.0.0-beta.49",
-    "babel-plugin-react-require": "^3.0.0",
-    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
-    "enzyme": "^3.1.0",
-    "enzyme-adapter-react-16": "^1.0.3",
+    "@types/sinon": "^5.0.5",
+    "enzyme-adapter-react-16": "^1.6.0",
     "jsdom": "^11.3.0",
     "prop-types": "^15.6.0",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "sarg": "^1.1.4",
-    "sinon": "^4.1.0"
+    "sarg": "^2.0.10",
+    "sinon": "^7.1.0",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
+    "typescript": "^3.1.3"
   },
   "keywords": [
     "history",
@@ -37,9 +31,7 @@
     "type": "git",
     "url": "https://github.com/VictorQueiroz/halter.git"
   },
-  "dependencies": {
-    "babel-runtime": "^6.26.0"
-  },
+  "dependencies": {},
   "scripts": {
     "test": "make test"
   },
