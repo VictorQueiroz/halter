@@ -25,7 +25,7 @@
   "main": "lib/index.js",
   "license": "MIT",
   "name": "halter",
-  "description": "",
+  "description": "Simple and lightweight but robust router for your web application",
   "version": "1.0.7",
   "directories": {
     "test": "test"
