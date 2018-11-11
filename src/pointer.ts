@@ -197,7 +197,7 @@ class Pointer {
         return group;
     }
 
-    public match(path: string) {
+    public match(path: string): IPointerMatch | undefined {
         return this.getPathMatches(path)[0];
     }
 
