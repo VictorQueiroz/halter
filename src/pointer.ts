@@ -6,11 +6,17 @@ export interface IPointerRoute {
 }
 
 export interface IPointerMatch {
-    params: {
-        [s: string]: string;
-    };
+    /**
+     * Current route parameters (i.e. /users/victor = Map { 'id' => victor })
+     */
     params: Map<string, string>;
+    /**
+     * Original route name (i.e. /users/{id:[a-z]+})
+     */
     originalRoute: string;
+    /**
+     * Current route name (i.e. /users/victor)
+     */
     path: string;
 }
 
