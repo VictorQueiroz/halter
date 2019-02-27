@@ -1,9 +1,7 @@
 export interface IPointerRoute {
     params: string[];
     originalRoute: string;
-    resolve: (params?: {
-        [s: string]: string;
-    }) => string;
+    resolve: (params?: Map<string, string>) => string;
     regularExpression: RegExp;
 }
 
@@ -11,6 +9,7 @@ export interface IPointerMatch {
     params: {
         [s: string]: string;
     };
+    params: Map<string, string>;
     originalRoute: string;
     path: string;
 }
@@ -22,7 +21,7 @@ class Pointer {
     /**
      * Get raw route and replace it with params
      */
-    public resolve(pathname: string, params: any) {
+    public resolve(pathname: string, params: Map<string, string>) {
         const route = this.routes.find((r) => r.originalRoute === pathname);
 
         if(!route) {
@@ -107,7 +106,7 @@ class Pointer {
         return this;
     }
 
-    public createResolveFunction(route: string) {
+    public createResolveFunction(route: string): (params?: Map<string, string>) => string {
         const paths = this.getSlicesFromPath(route);
         const indexes: {
             [s: string]: number;
@@ -136,9 +135,7 @@ class Pointer {
             str += path;
         }
 
-        return (params?: {
-            [s: string]: string;
-        }) => {
+        return (params) => {
             let resolvedPath = str;
             let delta = 0;
 
@@ -147,11 +144,12 @@ class Pointer {
                     return;
                 }
 
-                if(!params.hasOwnProperty(paramName)) {
+                const value = params.get(paramName);
+
+                if(!value) {
                     throw new Error(`Missing param name "${paramName}" for resolving`);
                 }
 
-                const value = params[paramName];
                 const paramStartIndex = indexes[paramName] + delta;
 
                 resolvedPath = resolvedPath.substring(0, paramStartIndex) +
@@ -214,7 +212,7 @@ class Pointer {
                 continue;
             }
 
-            const params: { [s: string]: string; } = {};
+            const params = new Map<string, string>();
             const paramNames = new Array<string>().concat(this.routes[i].params);
             const jj = matches.length;
 
@@ -223,7 +221,7 @@ class Pointer {
                 if(!name) {
                     throw new Error('No param name found');
                 }
-                params[name] = matches[j];
+                params.set(name, matches[j]);
             }
 
             results.push({

@@ -4,13 +4,9 @@ import url from "url";
 import { Overwrite } from 'utility-types';
 import Pointer, { IPointerMatch } from "./pointer";
 
-export interface IRouteInputQuery {
-    [s: string]: string;
-}
-
 // export type ChangeCallback = (name: string, params?: IRouteInputParams, query?: string) => void;
 // export type ChangeStateFunction = (name: string, params?: IRouteInputParams, query?: string) => void;
-export type RouteCallback = (name: string, params?: IRouteInputParams, query?: IRouteInputQuery) => void;
+export type RouteCallback = (name: string, params: Map<string, string>, query: Map<string, string>) => void;
 
 export interface IRoute {
     /**
@@ -21,18 +17,32 @@ export interface IRoute {
     callback: RouteCallback;
     onBefore?: (
         match: IPointerMatch,
-        replace: RouteCallback,
-        push: RouteCallback
+        replace: UpdateStateCallback,
+        push: UpdateStateCallback
     ) => void;
 }
+
+type OnBeforeFunction = (a: UpdateStateCallback, b: UpdateStateCallback) => void;
+
+/**
+ * How user should pass query to router
+ */
+export type IRouteInputQuery = Map<string, string>;
+
+/**
+ * Input params for router methods
+ */
+export type IRouteInputParams = Map<string, string>;
+
+export type UpdateStateCallback = (name: string, params?: IRouteInputParams, query?: IRouteInputParams) => void;
 
 export type IRouteOnParameter = Overwrite<IRoute, {
     name?: string;
 }>;
 
-export interface IRouteInputParams {
-    [s: string]: string;
-}
+export type IRouteMatch = IPointerMatch & {
+    query: Map<string, string>;
+};
 
 class Router {
     public routes = new Map<string, IRoute>();
@@ -87,11 +97,13 @@ class Router {
             this.nextChanges.push(newPath);
             return;
         }
-        this.pending = this.changePath(newPath);
+        const pending = this.changePath(newPath);
+        this.pending = pending;
         try {
-            await this.pending;
+            await pending;
         } catch(reason) {
-            console.error('Unhandled failure while changing path');
+            console.error('Unhandled failure while changing path. See reason below:');
+            console.error(reason);
         } finally {
             delete this.pending;
         }
@@ -102,16 +114,11 @@ class Router {
         await this.onChangePath(nextPath);
     }
 
-    /**
-     * Receive a path changing notification and trigger
-     * the right callback of the route which it was changed to
-     * @param newPath New path
-     */
-    public async changePath(newPath: string) {
-        const parsedUrl = url.parse(newPath);
+    public getMatchInformation(path: string) {
+        const parsedUrl = url.parse(path);
 
         if(!parsedUrl.pathname) {
-            throw new Error('Invalid url');
+            return;
         }
 
         const pointerMatch = this.pointer.match(parsedUrl.pathname);
@@ -119,23 +126,52 @@ class Router {
             return;
         }
 
-        for(const onChange of this.callbackChange) {
-            onChange(newPath, pointerMatch.params, parsedUrl.query);
+        const parsedQuery = querystring.parse(parsedUrl.query || '');
+        const query = new Map<string, string>();
+
+        for(const property of Object.keys(parsedQuery)) {
+            let value = parsedQuery[property];
+            if(Array.isArray(value)) {
+                value = value.join(',');
+            }
+            query.set(property, value);
         }
 
-        const match: IPointerMatch & {
-            query: string;
-        } = {
+        const match: IRouteMatch = {
             ...pointerMatch,
-            query: querystring.parse(parsedUrl.query)
+            query
         };
 
         const route = this.findRouteOrFail(match.originalRoute);
+        return {
+            match,
+            parsedUrl,
+            route
+        };
+    }
+
+    /**
+     * Receive a path changing notification and trigger
+     * the right callback of the route which it was changed to
+     * @param newPath New path
+     */
+    public async changePath(newPath: string) {
+        const result = this.getMatchInformation(newPath);
+
+        if(!result) {
+            throw new Error(`No route found for the current path: ${newPath}`);
+        }
+
+        const { route, match } = result;
+
+        for(const onChange of this.callbackChange) {
+            onChange(route.name, match.params, match.query);
+        }
 
         const { callback, onBefore } = route;
 
         await this.onMatchRoute(() => (
-            callback(route.name, match.params, querystring.parse(parsedUrl.query))
+            callback(route.name, match.params, match.query)
         ), onBefore ? (replaceState, pushState) => (
             onBefore(match, replaceState, pushState)
         ) : undefined);
@@ -155,11 +191,11 @@ class Router {
         return route;
     }
 
-    public async executeOnBefore(onBefore: (a: RouteCallback, b: RouteCallback) => void) {
+    public async executeOnBefore(onBefore: OnBeforeFunction) {
         let result: Promise<void> | undefined;
         let cancelled = false;
 
-        const onPushState: RouteCallback = (name, params, query) => {
+        const onPushState: UpdateStateCallback = (name, params, query) => {
             if(cancelled) {
                 throw new Error(
                     `You can only execute \`pushState\` or \`replaceState\` ` +
@@ -171,7 +207,7 @@ class Router {
             result = this.pushState(name, params, query);
         };
 
-        const onReplaceState: RouteCallback = (name, params, query) => {
+        const onReplaceState: UpdateStateCallback = (name, params, query) => {
             if(cancelled) {
                 throw new Error(
                     `You can only execute \`pushState\` or \`replaceState\` ` +
@@ -194,7 +230,7 @@ class Router {
 
     public async onMatchRoute(
         callback: () => void,
-        onBefore?: (replaceState: RouteCallback, pushState: RouteCallback) => void
+        onBefore?: OnBeforeFunction
     ) {
         let cancelled = false;
 
@@ -210,32 +246,36 @@ class Router {
     }
 
     public async pushState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
-        const url = this.resolve(name, params, query);
-        if(!url) {
+        const resolved = this.resolve(name, params, query);
+        if(!resolved) {
             throw new Error(`No route found for name "${name}"`);
         }
-        this.history.push(url);
+        this.history.push(resolved);
     }
 
     public async replaceState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
-        const url = this.resolve(name, params, query);
-        if(!url) {
+        const resolved = this.resolve(name, params, query);
+        if(!resolved) {
             throw new Error(`No route found for name "${name}"`);
         }
-        this.history.push(url);
+        this.history.push(resolved);
     }
 
-    public resolve(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
+    public resolve(name: string, params?: IRouteInputParams, query?: IRouteInputQuery): string {
         const route = this.routes.get(name);
         if(!route) {
-            return;
+            return '';
         }
         const match = this.pointer.getOrFail(route.path);
-        let url = match.resolve(params);
+        let resolved = match.resolve(params);
         if(query) {
-            url += '?' + querystring.stringify(query);
+            const object: { [s: string]: string; } = {};
+            for(const [key, value] of query) {
+                object[key] = value;
+            }
+            resolved += '?' + querystring.stringify(object);
         }
-        return url;
+        return resolved;
     }
 
     public getAbsolutePath() {

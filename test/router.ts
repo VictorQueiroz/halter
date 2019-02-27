@@ -1,4 +1,4 @@
-import assert from 'assert';
+import { assert } from 'chai';
 import { createMemoryHistory, History } from 'history';
 import { test } from 'sarg';
 import sinon from 'sinon';
@@ -19,7 +19,7 @@ test('it should match /', async () => {
     const callback = sinon.spy();
     const booksCallback = sinon.spy();
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         callback,
         path: '/'
     }, {
@@ -30,6 +30,8 @@ test('it should match /', async () => {
     assert(callback.called);
     assert(booksCallback.notCalled);
     assert.equal(1, callback.callCount);
+
+    router.destroy();
 });
 
 test('it should match / search', async () => {
@@ -38,7 +40,7 @@ test('it should match / search', async () => {
     const history = createMemoryHistory();
     history.push('/books/1002?q_comments=Title');
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         callback,
         path: '/'
     }, {
@@ -50,10 +52,12 @@ test('it should match / search', async () => {
     assert(callback.notCalled);
     assert(booksCallback.calledWith(
         'books',
-        { id: '1002' },
-        { q_comments: 'Title' }
+        new Map().set('id', '1002'),
+        new Map().set('q_comments', 'Title')
     ));
     assert.equal(1, booksCallback.callCount);
+
+    router.destroy();
 });
 
 test('it should not match /books/100', async () => {
@@ -63,7 +67,7 @@ test('it should not match /books/100', async () => {
     const history = createMemoryHistory();
     history.push('/books/39990481091');
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         callback: indexCallback,
         path: '/'
     }, {
@@ -79,13 +83,15 @@ test('it should not match /books/100', async () => {
 
     assert(postsCallback.notCalled);
     assert(indexCallback.notCalled);
+
+    router.destroy();
 });
 
 test('it should support async callback', async () => {
     const indexCallback = sinon.spy();
     const history = createMemoryHistory();
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         path: '/',
         callback(params) {
             return new Promise((resolve) => {
@@ -99,13 +105,15 @@ test('it should support async callback', async () => {
     history.push('/');
 
     assert(indexCallback.called);
+
+    router.destroy();
 });
 
 test('it should call callback with route params', async () => {
     const indexCallback = sinon.spy();
     const history = createMemoryHistory();
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         callback: indexCallback,
         path: '/books/{id:[0-9]+}'
     });
@@ -113,11 +121,11 @@ test('it should call callback with route params', async () => {
 
     assert(indexCallback.calledWith(
         '/books/{id:[0-9]+}',
-        {
-            id: '3991'
-        },
-        {}
+        new Map().set('id', '3991'),
+        new Map()
     ));
+
+    router.destroy();
 });
 
 test('it should replace state inside onBefore', async () => {
@@ -125,13 +133,11 @@ test('it should replace state inside onBefore', async () => {
     const shortBooksCallback = sinon.spy();
     const history = createMemoryHistory();
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         callback: booksCallback,
         path: '/books/{id:[0-9]+}',
         onBefore(match, replaceState) {
-            replaceState('bRoute', {
-                id: match.params.id
-            });
+            replaceState('bRoute', match.params);
         }
     }, {
         callback: shortBooksCallback,
@@ -143,13 +149,15 @@ test('it should replace state inside onBefore', async () => {
     assert(booksCallback.notCalled);
     assert(shortBooksCallback.called);
     assert.equal(shortBooksCallback.callCount, 1);
+
+    router.destroy();
 });
 
 test('it should call onBefore() with match', async () => {
     const onBeforeCallback = sinon.spy();
     const history = createMemoryHistory();
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         callback: () => undefined,
         onBefore: onBeforeCallback,
         path: '/books/{id:[0-9]+}',
@@ -158,10 +166,12 @@ test('it should call onBefore() with match', async () => {
 
     assert.deepEqual(onBeforeCallback.args[0][0], {
         originalRoute: '/books/{id:[0-9]+}',
-        params: { id: '100' },
+        params: new Map().set('id', '100'),
         path: '/books/100',
-        query: {}
+        query: new Map()
     });
+
+    router.destroy();
 });
 
 // test('it should allow to execute pushState or replaceState just once inside onBefore', async () => {
@@ -211,7 +221,7 @@ test('it should cancel redirection if pushState/replaceState is called inside on
     const indexCallback = sinon.spy();
     const loginCallback = sinon.spy();
 
-    await createRouter(history, {
+    const router = await createRouter(history, {
         callback: indexCallback,
         onBefore: (_MATCH, replaceState) => {
             replaceState('login');
@@ -225,4 +235,64 @@ test('it should cancel redirection if pushState/replaceState is called inside on
 
     assert(indexCallback.notCalled);
     assert(loginCallback.calledOnce);
+
+    router.destroy();
+});
+
+test('replaceState(): it should throw for unexistent route name', async () => {
+    const history = createMemoryHistory();
+    history.push('/');
+
+    const router = await createRouter(history);
+    try {
+        await router.replaceState('app.index');
+    } catch(reason) {
+        assert.ok(/No route found for name "app\.index"/.test(reason.message));
+    }
+
+    router.destroy();
+});
+
+test('resolve(): it should resolve route path according to arguments', async () => {
+    const history = createMemoryHistory();
+    history.push('/');
+
+    const router = await createRouter(history, {
+        callback: () => undefined,
+        name: 'app.index',
+        path: '/users/{username:[a-z0-9\-]+}'
+    });
+
+    assert.equal('/users/victor-queiroz?offset=10', router.resolve(
+        'app.index',
+        new Map().set('username', 'victor-queiroz'),
+        new Map().set('offset', '10')
+    ));
+});
+
+test('pushState(): it should push resolved state to history', async () => {
+    const history = createMemoryHistory();
+    history.push('/');
+
+    const router = await createRouter(history, {
+        callback: () => undefined,
+        name: 'app.index',
+        path: '/home'
+    });
+    await router.pushState('app.index');
+    assert.equal('/home', history.location.pathname);
+});
+
+test('pushState(): it should throw for unexistent routes', async () => {
+    const history = createMemoryHistory();
+    history.push('/');
+
+    const router = await createRouter(history);
+    try {
+        await router.pushState('app.index');
+    } catch(reason) {
+        assert.ok(/No route found for name "app\.index"/.test(reason.message));
+    }
+
+    router.destroy();
 });
