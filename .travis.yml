@@ -8,4 +8,4 @@ before_install:
 install:
   - yarn
 script:
-  - make test
+  - yarn run test
