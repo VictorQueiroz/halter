@@ -31,7 +31,7 @@
   "license": "MIT",
   "name": "halter",
   "description": "Simple and lightweight but robust router for your web application",
-  "version": "2.0.1",
+  "version": "2.0.8",
   "directories": {
     "test": "test"
   },
@@ -42,10 +42,13 @@
   "dependencies": {},
   "scripts": {
     "test": "npx sarg --require ts-node/register --bail test/**/*.ts",
-    "coverage": "npx nyc yarn run test"
+    "coverage": "npx nyc npx sarg --require ts-node/register --bail test/**/*.ts"
   },
   "nyc": {
-    "extension": [".ts", ".js"]
+    "extension": [
+      ".ts",
+      ".js"
+    ]
   },
   "author": "Victor Queiroz <victorcqueirozg@gmail.com>"
 }
