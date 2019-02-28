@@ -14,7 +14,7 @@ Then set up your routes:
 
 ```ts
 import { createMemoryHistory } from 'history';
-import { Router, HistoryBrowser } from 'halter';
+import { Router } from 'halter';
 
 async function bootstrap() {
     const router = new Router(createMemoryHistory()).on({
