@@ -44,6 +44,11 @@ export type IRouteMatch = IPointerMatch & {
     query: Map<string, string>;
 };
 
+export enum StateChangeType {
+    Push = 1,
+    Replace
+}
+
 class Router {
     public routes = new Map<string, IRoute>();
     public pointer = new Pointer();
@@ -159,7 +164,8 @@ class Router {
         const result = this.getMatchInformation(newPath);
 
         if(!result) {
-            throw new Error(`No route found for the current path: ${newPath}`);
+            // throw new Error(`No route found for the current path: ${newPath}`);
+            return;
         }
 
         const { route, match } = result;
@@ -194,29 +200,27 @@ class Router {
     public async executeOnBefore(onBefore: OnBeforeFunction) {
         let result: Promise<void> | undefined;
         let cancelled = false;
+        const alreadyCancelledError = new Error(
+            `You can only execute \`pushState\` or \`replaceState\` ` +
+            `once while inside \`onBefore\` statements`
+        );
 
         const onPushState: UpdateStateCallback = (name, params, query) => {
             if(cancelled) {
-                throw new Error(
-                    `You can only execute \`pushState\` or \`replaceState\` ` +
-                    `once while inside \`onBefore\` statements`
-                );
+                throw alreadyCancelledError;
             }
 
             cancelled = true;
-            result = this.pushState(name, params, query);
+            result = this.changeState(name, params, query, StateChangeType.Push);
         };
 
         const onReplaceState: UpdateStateCallback = (name, params, query) => {
             if(cancelled) {
-                throw new Error(
-                    `You can only execute \`pushState\` or \`replaceState\` ` +
-                    `once while inside \`onBefore\` statements`
-                );
+                throw alreadyCancelledError;
             }
 
             cancelled = true;
-            result = this.replaceState(name, params, query);
+            result = this.changeState(name, params, query, StateChangeType.Replace);
         };
 
         await onBefore(onReplaceState, onPushState);
@@ -245,22 +249,6 @@ class Router {
         await callback();
     }
 
-    public async pushState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
-        const resolved = this.resolve(name, params, query);
-        if(!resolved) {
-            throw new Error(`No route found for name "${name}"`);
-        }
-        this.history.push(resolved);
-    }
-
-    public async replaceState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
-        const resolved = this.resolve(name, params, query);
-        if(!resolved) {
-            throw new Error(`No route found for name "${name}"`);
-        }
-        this.history.push(resolved);
-    }
-
     public resolve(name: string, params?: IRouteInputParams, query?: IRouteInputQuery): string {
         const route = this.routes.get(name);
         if(!route) {
@@ -278,23 +266,48 @@ class Router {
         return resolved;
     }
 
-    public getAbsolutePath() {
-        const { pathname, search } = this.history.location;
-        return pathname + search;
-    }
-
     public async init() {
-        this.unlistenHistory = this.history.listen((location) => {
-            this.onChangePath(location.pathname + location.search);
+        this.pending = new Promise((resolve) => {
+            this.unlistenHistory = this.history.listen((location) => {
+                this.onChangePath(location.pathname + location.search);
+            });
+            const {location} = this.history;
+            resolve(this.onChangePath(location.pathname + location.search));
         });
-        await this.onChangePath(this.getAbsolutePath());
+        await this.pending;
         return this;
     }
 
     public destroy() {
+        this.pointer.clear();
         this.routes.clear();
         if(this.unlistenHistory) {
             this.unlistenHistory();
+        }
+    }
+
+    public pushState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
+        return this.changeState(name, params, query, StateChangeType.Push);
+    }
+
+    public replaceState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
+        return this.changeState(name, params, query, StateChangeType.Replace);
+    }
+
+    private async changeState(
+        name: string,
+        params: IRouteInputParams = new Map(),
+        query: IRouteInputQuery = new Map(),
+        change: StateChangeType
+    ) {
+        const resolved = this.resolve(name, params, query);
+        if(!resolved) {
+            throw new Error(`No route found for name "${name}"`);
+        }
+        if(change === StateChangeType.Push) {
+            this.history.push(resolved);
+        } else {
+            this.history.replace(resolved);
         }
     }
 }
