@@ -141,3 +141,33 @@ test('resolve(): it should resolve route with params', () => {
 
     assert.deepEqual(pointer.resolve('/books/{id:[0-9]+}', new Map().set('id', '100')), '/books/100');
 });
+
+test('clear(): it should clear routes', () => {
+    const pointer = new Pointer().add('/users').add('/').add('/books/{name:^[a-zA-Z\-]{1,16}$}');
+    assert.equal(
+        '/books/victor-queiroz',
+        pointer.resolve('/books/{name:^[a-zA-Z\-]{1,16}$}', new Map().set('name', 'victor-queiroz'))
+    );
+    pointer.clear();
+    assert.throws(() => {
+        pointer.resolve('/books/{name:^[a-zA-Z\-]{1,16}$}', new Map().set('name', 'victor-queiroz'));
+    }, /Route not found/);
+});
+
+test('it should not accept input parameters that does not pass the regular expression test', () => {
+    const pointer = new Pointer().add('/users').add('/').add('/books/{name:^[a-zA-Z]{6,12}$}');
+    try {
+        pointer.resolve(
+            '/books/{name:^[a-zA-Z]{6,12}$}',
+            new Map().set('name', 'victor-queiroz')
+        );
+    } catch(reason) {
+        assert.equal(reason.message, (
+            `Expected "victor-queiroz" to match regular expression /^[a-zA-Z]{6,12}$/ on param "name"`
+        ));
+    }
+    assert.equal('/books/victorq', pointer.resolve(
+        '/books/{name:^[a-zA-Z]{6,12}$}',
+        new Map().set('name', 'victorq')
+    ));
+});

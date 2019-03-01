@@ -27,7 +27,7 @@ class Pointer {
     /**
      * Get raw route and replace it with params
      */
-    public resolve(pathname: string, params: Map<string, string>) {
+    public resolve(pathname: string, params = new Map<string, string>()) {
         const route = this.routes.find((r) => r.originalRoute === pathname);
 
         if(!route) {
@@ -114,9 +114,8 @@ class Pointer {
 
     public createResolveFunction(route: string): (params?: Map<string, string>) => string {
         const paths = this.getSlicesFromPath(route);
-        const indexes: {
-            [s: string]: number;
-        } = {};
+        const indexes = new Map<string, number>();
+        const expressions = new Map<string, RegExp>();
 
         let str = '';
 
@@ -131,10 +130,11 @@ class Pointer {
 
                 if(commaIndex > -1) {
                     paramName = contents.substring(0, commaIndex);
+                    expressions.set(paramName, new RegExp(contents.substring(commaIndex + 1)));
                 }
 
                 str += '/';
-                indexes[paramName] = str.length;
+                indexes.set(paramName, str.length);
                 continue;
             }
 
@@ -145,24 +145,37 @@ class Pointer {
             let resolvedPath = str;
             let delta = 0;
 
-            Object.keys(indexes).forEach((paramName) => {
-                if(!params) {
-                    return;
-                }
+            if(!params) {
+                return resolvedPath;
+            }
 
+            for(const paramName of indexes.keys()) {
                 const value = params.get(paramName);
 
                 if(!value) {
                     throw new Error(`Missing param name "${paramName}" for resolving`);
                 }
 
-                const paramStartIndex = indexes[paramName] + delta;
+                const index = indexes.get(paramName);
+                const expression = expressions.get(paramName);
+
+                if(typeof index !== 'number' || !expression) {
+                    throw new Error(`Internal error: Could not find index to param ${paramName}`);
+                }
+
+                if(!expression.test(value)) {
+                    throw new Error(
+                        `Expected "${value}" to match regular expression ${expression} on param "${paramName}"`
+                    );
+                }
+
+                const paramStartIndex = index + delta;
 
                 resolvedPath = resolvedPath.substring(0, paramStartIndex) +
                                 value +
                                 resolvedPath.substring(paramStartIndex, resolvedPath.length);
                 delta += value.length;
-            });
+            }
 
             return resolvedPath;
         };
@@ -238,6 +251,10 @@ class Pointer {
         }
 
         return results;
+    }
+
+    public clear() {
+        this.routes.splice(0, this.routes.length);
     }
 }
 
