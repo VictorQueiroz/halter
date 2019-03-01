@@ -5,9 +5,7 @@
     "@types/node": "^11.9.4",
     "@types/sinon": "^7.0.6",
     "chai": "^4.2.0",
-    "enzyme-adapter-react-16": "^1.6.0",
     "history": "^4.7.2",
-    "jsdom": "^11.3.0",
     "nyc": "^13.3.0",
     "prop-types": "^15.6.0",
     "sarg": "^2.0.11",
@@ -31,7 +29,7 @@
   "license": "MIT",
   "name": "halter",
   "description": "Simple and lightweight but robust router for your web application",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "directories": {
     "test": "test"
   },
