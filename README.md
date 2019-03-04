@@ -83,3 +83,43 @@ router.listen((name, params, query) => (
     console.log('New path is %s, params are %o and query is %o', name, params, query);
 ));
 ```
+
+### Integration with React
+
+Integration with React it's pretty straightforward. You use `<RouterView routes={x} router={y} />` from `react-halter` NPM module and it'll automatically create necessary routes according to the nested structure provided through `routes` property. See the steps below:
+
+1. Install `react-halter` module:
+
+```
+npm install --save react-halter
+```
+
+2. Set up routes:
+
+```ts
+const routes = [{
+    path: '/',
+    name: 'app',
+    component: HomeWrapper,
+    childRoutes: [{
+        name: 'post',
+        path: 'posts/{id:[A-z0-9]+}',
+        component: Post
+    }, {
+        path: 'login',
+        name: 'login',
+        component: Login
+    }]
+}, {
+    name: 'dashboard',
+    path: '/dashboard',
+    component: Dashboard,
+    onBefore: rules.isGuest
+}];
+ReactDOM.render(
+    <RouterView
+        router={router}
+        routes={router} />,
+    document.getElementById('app')
+);
+```
