@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { History as CompatHistory, UnregisterCallback } from 'history';
 import querystring from "querystring";
 import url from "url";
@@ -49,7 +50,7 @@ export enum StateChangeType {
     Replace
 }
 
-class Router {
+class Router extends EventEmitter {
     public routes = new Map<string, IRoute>();
     public pointer = new Pointer();
     /**
@@ -63,13 +64,28 @@ class Router {
     private callbackChange: RouteCallback[] = [];
     private unlistenHistory?: UnregisterCallback;
     constructor(private history: CompatHistory) {
+        super();
     }
 
-    public listen(callback: RouteCallback) {
+    public on(name: 'routeNotFound', callback: (newPath: string) => void): this;
+    public on(name: string, callback: (...args: any[]) => void) {
+        return super.on(name, callback);
+    }
+
+    /**
+     * Listen to valid changes on route. Meaning, that it'll be called whenever you
+     * change from one route to another.
+     * @param callback Callback that will be called when route change is received
+     */
+    public listen(callback: RouteCallback): void {
         this.callbackChange.push(callback);
     }
 
-    public removeListener(callback: RouteCallback) {
+    /**
+     * Removes callback from callback change list.
+     * @param callback Callback reference that was added through listen()
+     */
+    public removeRouteListener(callback: RouteCallback) {
         for(let i = 0; i < this.callbackChange.length; i++) {
             if(this.callbackChange[i] !== callback) {
                 continue;
@@ -80,7 +96,7 @@ class Router {
         }
     }
 
-    public on({ name, path, callback, onBefore }: IRouteOnParameter): this {
+    public addRoute({ name, path, callback, onBefore }: IRouteOnParameter): this {
         if(!name) {
             name = path;
         }
@@ -97,7 +113,120 @@ class Router {
         return this;
     }
 
-    public async onChangePath(newPath: string) {
+    public findRouteOrFail(name: string) {
+        let route: IRoute | undefined;
+        for(const currRoute of this.routes.values()) {
+            if(currRoute.path === name) {
+                route = currRoute;
+                break;
+            }
+        }
+        if(!route) {
+            throw new Error('Route not found');
+        }
+        return route;
+    }
+
+    public resolve(name: string, params?: IRouteInputParams, query?: IRouteInputQuery): string {
+        const route = this.routes.get(name);
+        if(!route) {
+            return '';
+        }
+        const match = this.pointer.getOrFail(route.path);
+        let resolved = match.resolve(params);
+        if(query) {
+            const object: { [s: string]: string; } = {};
+            for(const [key, value] of query) {
+                object[key] = value;
+            }
+            resolved += '?' + querystring.stringify(object);
+        }
+        return resolved;
+    }
+
+    /**
+     * Start listening to history changes and execute
+     * callbacks according to current path. Will be resolved when
+     * the whole process was performed.
+     */
+    public async init() {
+        this.pending = new Promise((resolve) => {
+            this.unlistenHistory = this.history.listen((location) => {
+                this.onChangePath(location.pathname + location.search);
+            });
+            const {location} = this.history;
+            resolve(this.onChangePath(location.pathname + location.search));
+        });
+        await this.pending;
+        return this;
+    }
+
+    public destroy() {
+        this.pointer.clear();
+        this.routes.clear();
+        if(this.unlistenHistory) {
+            this.unlistenHistory();
+        }
+    }
+
+    /**
+     * The same as `history.pushState` but it'll resolve name, params and query
+     * into a valid pathname and push it to history
+     * @param name Route name
+     * @param params Route params
+     * @param query Route query
+     */
+    public pushState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
+        return this.changeState(name, params, query, StateChangeType.Push);
+    }
+
+    /**
+     * The same as `pushState` but it'll replace current state with resolved
+     * pathname
+     * @param name Route name
+     * @param params Route params
+     * @param query Route query
+     */
+    public replaceState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
+        return this.changeState(name, params, query, StateChangeType.Replace);
+    }
+
+    private async executeOnBefore(onBefore: OnBeforeFunction) {
+        let result: Promise<void> | undefined;
+        let cancelled = false;
+        const alreadyCancelledError = new Error(
+            `You can only execute \`pushState\` or \`replaceState\` ` +
+            `once while inside \`onBefore\` statements`
+        );
+
+        const onPushState: UpdateStateCallback = (name, params, query) => {
+            if(cancelled) {
+                throw alreadyCancelledError;
+            }
+
+            cancelled = true;
+            result = this.changeState(name, params, query, StateChangeType.Push);
+        };
+
+        const onReplaceState: UpdateStateCallback = (name, params, query) => {
+            if(cancelled) {
+                throw alreadyCancelledError;
+            }
+
+            cancelled = true;
+            result = this.changeState(name, params, query, StateChangeType.Replace);
+        };
+
+        await onBefore(onReplaceState, onPushState);
+
+        if(cancelled) {
+            await result;
+        }
+
+        return cancelled;
+    }
+
+    private async onChangePath(newPath: string) {
         if(this.pending) {
             this.nextChanges.push(newPath);
             return;
@@ -119,7 +248,7 @@ class Router {
         await this.onChangePath(nextPath);
     }
 
-    public getMatchInformation(path: string) {
+    private getMatchInformation(path: string) {
         const parsedUrl = url.parse(path);
 
         if(!parsedUrl.pathname) {
@@ -160,11 +289,11 @@ class Router {
      * the right callback of the route which it was changed to
      * @param newPath New path
      */
-    public async changePath(newPath: string) {
+    private async changePath(newPath: string) {
         const result = this.getMatchInformation(newPath);
 
         if(!result) {
-            // throw new Error(`No route found for the current path: ${newPath}`);
+            this.onRouteNotFound(newPath);
             return;
         }
 
@@ -183,56 +312,11 @@ class Router {
         ) : undefined);
     }
 
-    public findRouteOrFail(name: string) {
-        let route: IRoute | undefined;
-        for(const currRoute of this.routes.values()) {
-            if(currRoute.path === name) {
-                route = currRoute;
-                break;
-            }
-        }
-        if(!route) {
-            throw new Error('Route not found');
-        }
-        return route;
+    private onRouteNotFound(newPath: string) {
+        this.emit('routeNotFound', newPath);
     }
 
-    public async executeOnBefore(onBefore: OnBeforeFunction) {
-        let result: Promise<void> | undefined;
-        let cancelled = false;
-        const alreadyCancelledError = new Error(
-            `You can only execute \`pushState\` or \`replaceState\` ` +
-            `once while inside \`onBefore\` statements`
-        );
-
-        const onPushState: UpdateStateCallback = (name, params, query) => {
-            if(cancelled) {
-                throw alreadyCancelledError;
-            }
-
-            cancelled = true;
-            result = this.changeState(name, params, query, StateChangeType.Push);
-        };
-
-        const onReplaceState: UpdateStateCallback = (name, params, query) => {
-            if(cancelled) {
-                throw alreadyCancelledError;
-            }
-
-            cancelled = true;
-            result = this.changeState(name, params, query, StateChangeType.Replace);
-        };
-
-        await onBefore(onReplaceState, onPushState);
-
-        if(cancelled) {
-            await result;
-        }
-
-        return cancelled;
-    }
-
-    public async onMatchRoute(
+    private async onMatchRoute(
         callback: () => void,
         onBefore?: OnBeforeFunction
     ) {
@@ -247,51 +331,6 @@ class Router {
         }
 
         await callback();
-    }
-
-    public resolve(name: string, params?: IRouteInputParams, query?: IRouteInputQuery): string {
-        const route = this.routes.get(name);
-        if(!route) {
-            return '';
-        }
-        const match = this.pointer.getOrFail(route.path);
-        let resolved = match.resolve(params);
-        if(query) {
-            const object: { [s: string]: string; } = {};
-            for(const [key, value] of query) {
-                object[key] = value;
-            }
-            resolved += '?' + querystring.stringify(object);
-        }
-        return resolved;
-    }
-
-    public async init() {
-        this.pending = new Promise((resolve) => {
-            this.unlistenHistory = this.history.listen((location) => {
-                this.onChangePath(location.pathname + location.search);
-            });
-            const {location} = this.history;
-            resolve(this.onChangePath(location.pathname + location.search));
-        });
-        await this.pending;
-        return this;
-    }
-
-    public destroy() {
-        this.pointer.clear();
-        this.routes.clear();
-        if(this.unlistenHistory) {
-            this.unlistenHistory();
-        }
-    }
-
-    public pushState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
-        return this.changeState(name, params, query, StateChangeType.Push);
-    }
-
-    public replaceState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
-        return this.changeState(name, params, query, StateChangeType.Replace);
     }
 
     private async changeState(

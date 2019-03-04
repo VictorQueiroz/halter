@@ -8,7 +8,7 @@ function createRouter(history: History, ...routes: IRouteOnParameter[]) {
     const router = new Router(history);
 
     for(const route of routes) {
-        router.on(route);
+        router.addRoute(route);
     }
 
     return router.init();
@@ -213,6 +213,14 @@ test('it should call onBefore() with match', async () => {
 //     assert(loginCallback.called);
 //     assert(loginOnBefore.called);
 // });
+test('it should emit routeNotFound event when hit an unexistent URL', async () => {
+    const history = createMemoryHistory();
+    const router = new Router(history);
+    const onRouteNotFound = sinon.spy();
+    router.on('routeNotFound', onRouteNotFound);
+    await router.init();
+    assert.ok(onRouteNotFound.calledWith('/'));
+});
 
 test('it should cancel redirection if pushState/replaceState is called inside onBefore', async () => {
     const history = createMemoryHistory();
