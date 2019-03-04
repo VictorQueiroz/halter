@@ -174,45 +174,6 @@ test('it should call onBefore() with match', async () => {
     router.destroy();
 });
 
-// test('it should allow to execute pushState or replaceState just once inside onBefore', async () => {
-//     const indexCallback = sinon.spy();
-//     const dashboardOnBefore = sinon.spy();
-//     const dashboardCallback = sinon.spy();
-//     const loginCallback = sinon.spy();
-//     const loginOnBefore = sinon.spy();
-//     const history = createMemoryHistory();
-//     history.push('/');
-
-//     try {
-//         await createRouter(history, {
-//             callback: indexCallback,
-//             onBefore: (_MATCH, replaceState) => {
-//                 replaceState('/login');
-//                 replaceState('/dashboard');
-//             },
-//             path: '/',
-//         }, {
-//             callback: dashboardCallback,
-//             onBefore: dashboardOnBefore,
-//             path: '/dashboard',
-//         }, {
-//             callback: loginCallback,
-//             onBefore: loginOnBefore,
-//             path: '/login',
-//         });
-//     } catch(reason) {
-//         assert.deepEqual(reason, new Error(
-//             `You can only execute \`pushState\` or \`replaceState\` ` +
-//             `once while inside \`onBefore\` statements`
-//         ));
-//     }
-
-//     assert(indexCallback.notCalled);
-//     assert(dashboardOnBefore.notCalled);
-//     assert(dashboardCallback.notCalled);
-//     assert(loginCallback.called);
-//     assert(loginOnBefore.called);
-// });
 test('it should emit routeNotFound event when hit an unexistent URL', async () => {
     const history = createMemoryHistory();
     const router = new Router(history);
