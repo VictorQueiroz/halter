@@ -17,7 +17,7 @@ import { createMemoryHistory } from 'history';
 import { Router } from 'halter';
 
 async function bootstrap() {
-    const router = new Router(createMemoryHistory()).on({
+    const router = new Router(createMemoryHistory()).addRoute({
         path: '/',
         callback() {
             // it will be triggered when the browser history match "/"
@@ -43,7 +43,7 @@ import PostDetail from './components/PostDetail';
 import PostsList from './components/PostsList';
 import Link from './components/Link';
 
-const router = new Router(createBrowserHistory()).on({
+const router = new Router(createBrowserHistory()).addRoute({
     name: 'post.detail'
     path: '/posts/{id:[0-9]+}',
     callback: ({ params }) => {
@@ -51,7 +51,7 @@ const router = new Router(createBrowserHistory()).on({
             <PostDetail postId={params.get('id')} />,
             document.getElementById('app'));
     }
-}).on({
+}).addRoute({
     name: 'post.list',
     path: '/posts/list',
     callback: () => {
