@@ -1,6 +1,9 @@
 import { assert } from 'chai';
-import { test } from 'sarg';
+import { Suite } from 'sarg';
 import Pointer from '../src/pointer';
+
+const suite = new Suite();
+const {test} = suite;
 
 test('getSlicesFromPath(): it should get slices from path', () => {
     assert.deepEqual(new Pointer().getSlicesFromPath('/'), ['/']);
@@ -171,3 +174,5 @@ test('it should not accept input parameters that does not pass the regular expre
         new Map().set('name', 'victorq')
     ));
 });
+
+export default suite;
