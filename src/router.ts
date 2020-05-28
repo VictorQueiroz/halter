@@ -158,11 +158,10 @@ class Router extends EventEmitter {
      */
     public async init() {
         this.pending = new Promise((resolve) => {
-            this.unlistenHistory = this.history.listen((location) => {
-                this.onChangePath(location.pathname + location.search);
+            this.unlistenHistory = this.history.listen(() => {
+                this.onChangePath(this.getLocationPath());
             });
-            const {location} = this.history;
-            resolve(this.onChangePath(location.pathname + location.search));
+            resolve(this.onChangePath(this.getLocationPath()));
         });
         await this.pending;
         return this;
@@ -196,6 +195,11 @@ class Router extends EventEmitter {
      */
     public replaceState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
         return this.changeState(name, params, query, StateChangeType.Replace);
+    }
+
+    private getLocationPath() {
+        const {location} = this.history;
+        return location.pathname + location.search;
     }
 
     private async executeOnBefore(onBefore: OnBeforeFunction) {
