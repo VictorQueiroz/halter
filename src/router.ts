@@ -73,6 +73,13 @@ class Router extends EventEmitter {
     }
 
     /**
+     * Trigger state change without touching the history itself.
+     */
+    public reload() {
+        this.onChangePath(this.getLocationPath());
+    }
+
+    /**
      * Listen to valid changes on route. Meaning, that it'll be called whenever you
      * change from one route to another.
      * @param callback Callback that will be called when route change is received
