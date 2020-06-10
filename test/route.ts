@@ -116,13 +116,11 @@ suite.test('Route#resolve: it should resolve optional parameters', () => {
         ['tabId', 'settings'],
         ['sortBy', 'modified_at']
     ]));
-    // expect(route2.parse('/tabs/sorted-by/modified_at')).to.be.deep.equal(new Map([
-    //     ['sortBy', 'modified_at']
-    // ]));
-    // console.log(route2.resolve(new Map([
-    //     ['sortBy', 'created_at']
-    // ])))
-    // throw 1;
+    expect(route2.parse('/tabs/sorted-by/modified_at')).to.be.deep.equal(new Map([
+        ['sortBy', 'modified_at']
+    ]));
+    expect(route2.parse('/tabs/0/modified_at')).to.be.deep.equal(undefined);
+    expect(route2.parse('/tabs/*/modified_at')).to.be.deep.equal(undefined);
 });
 
 suite.test('Route#resolve: it should resolve routes with deep a-z params', () => {

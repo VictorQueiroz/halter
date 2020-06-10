@@ -27,7 +27,22 @@ export interface IRouteParam {
      * Distance between `position.end` and `position.start`
      */
     length: number;
+    /**
+     * It'll be true if the param expression ends with ?
+     */
+    isOptional: boolean;
+    /**
+     * Position of the param in the original string
+     */
     position: IPoint;
+    /**
+     * Regular expression matching just the param value
+     */
+    paramMatcher: RegExp;
+    /**
+     * Regular expression matching both previous contents
+     * and param.
+     */
     matcher: RegExp;
     /**
      * Content used in `contentsMatcher`
@@ -66,7 +81,7 @@ export default class Route {
         let delta = 0;
         for(const p of list) {
             const value = params?.get(p.name) || '';
-            if(!p.matcher.test(value)) return undefined;
+            if(!p.paramMatcher.test(value)) return undefined;
             final += p.previousContents;
             final += value;
             delta += p.length - value.length;
@@ -102,32 +117,32 @@ export default class Route {
             if(nextSlash === -1) {
                 nextSlash = value.length;
             }
-            const n = value.substring(offset, nextSlash);
-            /**
-             * Check if next slash is pointing to next param slash
-            if(i !== (list.length - 1)) {
-                const nextParam = list[i + 1];
-                console.log(
-                    n,
-                    nextParam,
-                    p
-                )
-            }
-             */
-            if(i === 0) {
-                if(!p.contentsMatcher(value)) return undefined;
-            } else {
-                const previousParam = list[i - 1];
-                const n1 = value.substring(
-                    previousParam[1].position.end - delta,
-                    start
-                );
-                if(!p.contentsMatcher(n1)) return undefined;
-            }
+            const n = value.substring(offset - p.previousContents.length, nextSlash);
             const matches = n.match(p.matcher);
-            if(!matches || !matches.length) return undefined;
-            delta += (p.length - matches[0].length);
-            values.set(p.name, matches[0]);
+            if(!matches || !matches.length) {
+                if(p.isOptional && n.startsWith(p.previousContents)) {
+                    let deltaLength = 0;
+                    /**
+                     * If this is an optional param, it is possible that this last slash
+                     * belongs to the next param.
+                     */
+                    if(i !== (list.length - 1)) {
+                        const nextParam = list[i + 1];
+                        /**
+                         * Start offset of previous contents that belongs to next param
+                         */
+                        const nextParamStartOfPreviousContents = nextParam[0] - nextParam[1].previousContents.length;
+                        if(nextParamStartOfPreviousContents === p.position.end) {
+                            deltaLength = '/'.length;
+                        }
+                    }
+                    delta += p.length + deltaLength;
+                    continue;
+                }
+                return undefined;
+            }
+            delta += (p.length - matches[1].length);
+            values.set(p.name, matches[1]);
 
             /**
              * If this is the last param, then we're sure there's no more regular expression
@@ -224,11 +239,13 @@ export default class Route {
             );
         }
         return {
-            matcher: new RegExp(`^${regExpStr}$`),
+            paramMatcher: new RegExp(`^(${regExpStr})$`),
+            matcher: new RegExp(`^${previousContents}(${regExpStr})$`),
             position: {
                 start,
                 end: this.offset
             },
+            isOptional: regExpStr[regExpStr.length - 1] === '?',
             previousContents,
             length: this.offset - start,
             name: paramName,
