@@ -1,15 +1,7 @@
 import { assert } from 'chai';
 import { test } from 'sarg';
 import Pointer from '../src/pointer';
-
-test('getSlicesFromPath(): it should get slices from path', () => {
-    assert.deepEqual(new Pointer().getSlicesFromPath('/'), ['/']);
-    assert.deepEqual(new Pointer().getSlicesFromPath('/user/{id:[0-9]+}'), ['/user', '/{id:[0-9]+}']);
-});
-
-test('getSlicesFromPath(): it should accept non absolute path', () => {
-    assert.deepEqual(new Pointer().getSlicesFromPath('user/{id:[0-9]+}'), ['user', '/{id:[0-9]+}']);
-});
+import Route from '../src/route';
 
 test('/ should match /', () => {
     assert(new Pointer()
@@ -43,12 +35,13 @@ test('it should fail when get invalid route', () => {
 });
 
 test('resolve(): it should throw for not found params', () => {
-    assert.throws(() => {
+    assert.equal(
         new Pointer()
             .add('/users/{id:[0-9]+}')
             .getOrFail('/users/{id:[0-9]+}')
-            .resolve(new Map());
-    }, /Missing param name \"id\"/);
+            .resolve(new Map()),
+        undefined
+    );
 });
 
 test('it should match /posts/{postId:[0-9]+}/comments/{commentId:[0-9]+}/lines/{lineId:[0-9]+}', () => {
@@ -61,10 +54,14 @@ test('it should match /posts/{postId:[0-9]+}/comments/{commentId:[0-9]+}/lines/{
     assert.equal(pointer.test('/posts/a/comments/2/lines/3'), false);
 });
 
-test('it should not allow repeated routes', () => {
-    assert.throws(() => {
-        new Pointer().add('/{id:[0-9]+}/{id:[0-9]+');
-    }, /Found repeated param \"id\"/);
+test('it should accept direct Route instances', () => {
+    const route = new Route(
+        '/{id:[0-9]+}/{id:[0-9]+}'
+    );
+    assert.equal(
+        new Pointer().add(route).getOrFail('/{id:[0-9]+}/{id:[0-9]+}'),
+        route
+    );
 });
 
 test('it should handle unexistent parameters', () => {
@@ -73,8 +70,8 @@ test('it should handle unexistent parameters', () => {
 
 test('resolve(): it should resolve long routes', () => {
     assert.equal(new Pointer()
-                .add('/posts/{id:[0-9]+}/comments/{commentId:[A-f0-9\-]+}')
-                .getOrFail('/posts/{id:[0-9]+}/comments/{commentId:[A-f0-9\-]+}')
+                .add('/posts/{id:[0-9]+}/comments/{commentId:[a-zA-Z0-9\-]+}')
+                .getOrFail('/posts/{id:[0-9]+}/comments/{commentId:[a-zA-Z0-9\-]+}')
                 .resolve(
                     new Map().set('commentId', 'PRmcQOTpaP-7092167576').set('id', '230')
                 ), '/posts/230/comments/PRmcQOTpaP-7092167576');
@@ -93,6 +90,7 @@ test('/users/user-name should return params for route /[a-z\-]/', () => {
     pointer.add('/users/{name:[a-z\-]+}/{page:[0-9]+}');
 
     assert.deepEqual(pointer.match('/users/victor-queiroz/10'), {
+        route: pointer.getOrFail('/users/{name:[a-z\-]+}/{page:[0-9]+}'),
         originalRoute: '/users/{name:[a-z\-]+}/{page:[0-9]+}',
         params: new Map().set('name', 'victor-queiroz').set('page', '10'),
         path: '/users/victor-queiroz/10'
@@ -119,6 +117,7 @@ test('it should match /books/[0-9] one route from many', () => {
                     .add('/books/{id:[0-9]+}')
                     .add('/posts/{id:[0-9]+}');
     assert.deepEqual(pointer.match('/books/10'), {
+        route: pointer.getOrFail('/books/{id:[0-9]+}'),
         originalRoute: '/books/{id:[0-9]+}',
         params: new Map().set('id', '10'),
         path: '/books/10'
@@ -130,6 +129,7 @@ test('getPathMatches(): it should get path matches', () => {
                     .add('/')
                     .add('/books/{id:[0-9]+}');
     assert.deepEqual(pointer.getPathMatches('/books/10'), [{
+        route: pointer.getOrFail('/books/{id:[0-9]+}'),
         originalRoute: '/books/{id:[0-9]+}',
         params: new Map().set('id', '10'),
         path: '/books/10'
@@ -143,14 +143,14 @@ test('resolve(): it should resolve route with params', () => {
 });
 
 test('clear(): it should clear routes', () => {
-    const pointer = new Pointer().add('/users').add('/').add('/books/{name:^[a-zA-Z\-]{1,16}$}');
+    const pointer = new Pointer().add('/users').add('/').add('/books/{name:[a-zA-Z\-]{1,16}}');
     assert.equal(
         '/books/victor-queiroz',
-        pointer.resolve('/books/{name:^[a-zA-Z\-]{1,16}$}', new Map().set('name', 'victor-queiroz'))
+        pointer.resolve('/books/{name:[a-zA-Z\-]{1,16}}', new Map().set('name', 'victor-queiroz'))
     );
     pointer.clear();
     assert.throws(() => {
-        pointer.resolve('/books/{name:^[a-zA-Z\-]{1,16}$}', new Map().set('name', 'victor-queiroz'));
+        pointer.resolve('/books/{name:[a-zA-Z\-]{1,16}}', new Map().set('name', 'victor-queiroz'));
     }, /Route not found/);
 });
 

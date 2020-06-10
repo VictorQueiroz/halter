@@ -6,13 +6,13 @@
     "@types/sinon": "^7.0.6",
     "chai": "^4.2.0",
     "history": "^4.7.2",
-    "nyc": "^13.3.0",
+    "nyc": "^15.1.0",
     "prop-types": "^15.6.0",
-    "sarg": "^2.0.11",
+    "sarg": "^4.0.6",
     "sinon": "^7.2.4",
-    "ts-node": "^8.0.2",
+    "ts-node": "^8.10.2",
     "tslint": "^5.11.0",
-    "typescript": "^3.3.3333",
+    "typescript": "^3.9.5",
     "utility-types": "^3.4.1"
   },
   "keywords": [
@@ -29,7 +29,7 @@
   "license": "MIT",
   "name": "halter",
   "description": "Simple and lightweight but robust router for your web application",
-  "version": "2.1.1",
+  "version": "2.5.5",
   "directories": {
     "test": "test"
   },
@@ -37,7 +37,9 @@
     "type": "git",
     "url": "https://github.com/VictorQueiroz/halter.git"
   },
-  "dependencies": {},
+  "dependencies": {
+    "tslib": "^2.0.0"
+  },
   "scripts": {
     "test": "npx sarg --require ts-node/register --bail test/**/*.ts",
     "coverage": "npx nyc npx sarg --require ts-node/register --bail test/**/*.ts"

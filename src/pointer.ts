@@ -1,3 +1,5 @@
+import Route from "./route";
+
 export interface IPointerRoute {
     params: string[];
     originalRoute: string;
@@ -6,12 +8,14 @@ export interface IPointerRoute {
 }
 
 export interface IPointerMatch {
+    route: Route;
     /**
      * Current route parameters (i.e. /users/victor = Map { 'id' => victor })
      */
     params: Map<string, string>;
     /**
      * Original route name (i.e. /users/{id:[a-z]+})
+     * @deprecated
      */
     originalRoute: string;
     /**
@@ -21,14 +25,13 @@ export interface IPointerMatch {
 }
 
 class Pointer {
-    constructor(private routes: IPointerRoute[] = []) {
-    }
+    private readonly routes = new Map<string, Route>();
 
     /**
      * Get raw route and replace it with params
      */
-    public resolve(pathname: string, params = new Map<string, string>()) {
-        const route = this.routes.find((r) => r.originalRoute === pathname);
+    public resolve(pathname: string, params = new Map<string, string>()): string | undefined {
+        const route = this.routes.get(pathname);
 
         if(!route) {
             throw new Error('Route not found');
@@ -37,61 +40,11 @@ class Pointer {
         return route.resolve(params);
     }
 
-    public createMatchRegularExpression(route: string): {
-        params: string[];
-        regularExpression: RegExp;
-    } {
-        const paths = this.getSlicesFromPath(route);
-        const exp = ['^'];
-        const params = [];
-
-        for(const path of paths) {
-            const bracketIndex = path.indexOf('{');
-
-            if(bracketIndex === -1) {
-                exp.push(path);
-                continue;
-            }
-
-            const content = path.substring(bracketIndex + 1, path.length - 1);
-            const colonIndex = content.indexOf(':');
-
-            if(colonIndex === -1) {
-                params.push(content);
-                exp.push('/([0-9A-z\_\-]+)');
-                continue;
-            }
-
-            params.push(content.substring(0, colonIndex));
-            exp.push(
-                '/(', content.substring(colonIndex + 1, content.length), ')'
-            );
-        }
-        exp.push('$');
-
-        for(let i = 0; i < params.length; i++) {
-            for(let j = 0; j < params.length; j++) {
-                if(i === j) {
-                    continue;
-                }
-
-                if(params[j] === params[i]) {
-                    throw new Error(`Found repeated param "${params[j]}" on route "${route}"`);
-                }
-            }
-        }
-
-        return {
-            params,
-            regularExpression: new RegExp(exp.join(''))
-        };
+    public get(path: string): Route | undefined {
+        return this.routes.get(path);
     }
 
-    public get(path: string): IPointerRoute | undefined {
-        return this.routes.find((route) => route.originalRoute === path);
-    }
-
-    public getOrFail(path: string): IPointerRoute {
+    public getOrFail(path: string): Route {
         const route = this.get(path);
         if(!route) {
             throw new Error('Could not find route');
@@ -99,86 +52,13 @@ class Pointer {
         return route;
     }
 
-    public add(route: string) {
-        const match = this.createMatchRegularExpression(route);
-        const resolveFunction = this.createResolveFunction(route);
-
-        this.routes.push({
-            originalRoute: route,
-            params: match.params,
-            regularExpression: match.regularExpression,
-            resolve: resolveFunction
-        });
-        return this;
-    }
-
-    public createResolveFunction(route: string): (params?: Map<string, string>) => string {
-        const paths = this.getSlicesFromPath(route);
-        const indexes = new Map<string, number>();
-        const expressions = new Map<string, RegExp>();
-
-        let str = '';
-
-        for(const path of paths) {
-            const bracketIndex = path.indexOf('{');
-
-            if(bracketIndex > -1) {
-                const contents = path.substring(bracketIndex + 1, path.length - 1);
-                const commaIndex = contents.indexOf(':');
-
-                let paramName = contents;
-
-                if(commaIndex > -1) {
-                    paramName = contents.substring(0, commaIndex);
-                    expressions.set(paramName, new RegExp(contents.substring(commaIndex + 1)));
-                }
-
-                str += '/';
-                indexes.set(paramName, str.length);
-                continue;
-            }
-
-            str += path;
+    public add(route: string | Route) {
+        if(typeof route === 'string') {
+            this.routes.set(route, new Route(route));
+        } else {
+            this.routes.set(route.original, route);
         }
-
-        return (params) => {
-            let resolvedPath = str;
-            let delta = 0;
-
-            if(!params) {
-                return resolvedPath;
-            }
-
-            for(const paramName of indexes.keys()) {
-                const value = params.get(paramName);
-
-                if(!value) {
-                    throw new Error(`Missing param name "${paramName}" for resolving`);
-                }
-
-                const index = indexes.get(paramName);
-                const expression = expressions.get(paramName);
-
-                if(typeof index !== 'number' || !expression) {
-                    throw new Error(`Internal error: Could not find index to param ${paramName}`);
-                }
-
-                if(!expression.test(value)) {
-                    throw new Error(
-                        `Expected "${value}" to match regular expression ${expression} on param "${paramName}"`
-                    );
-                }
-
-                const paramStartIndex = index + delta;
-
-                resolvedPath = resolvedPath.substring(0, paramStartIndex) +
-                                value +
-                                resolvedPath.substring(paramStartIndex, resolvedPath.length);
-                delta += value.length;
-            }
-
-            return resolvedPath;
-        };
+        return this;
     }
 
     public test(path: string) {
@@ -189,62 +69,22 @@ class Pointer {
         return false;
     }
 
-    public getSlicesFromPath(path: string) {
-        const group = [];
-        let nextItem = '';
-        const ii = path.length;
-
-        for(let i = 0; i < ii; i++) {
-            const lastItem = i === path.length - 1;
-
-            if(path[i] === '/' && lastItem) {
-                group.push(path[i]);
-                continue;
-            }
-
-            if(path[i + 1] === '/' || lastItem) {
-                group.push(nextItem + path[i]);
-                nextItem = '';
-                continue;
-            }
-
-            nextItem += path[i];
-        }
-
-        return group;
-    }
-
     public match(path: string): IPointerMatch | undefined {
         return this.getPathMatches(path)[0];
     }
 
     public getPathMatches(path: string): IPointerMatch[] {
-        const ii = this.routes.length;
-        const results: IPointerMatch[] = [];
-        let i: number;
-        let j: number;
+        const results = new Array<IPointerMatch>();
+        for(const route of this.routes.values()) {
+            const params = route.parse(path);
 
-        for(i = 0; i < ii; i++) {
-            const matches = path.match(this.routes[i].regularExpression);
-
-            if(!matches) {
+            if(!params) {
                 continue;
             }
 
-            const params = new Map<string, string>();
-            const paramNames = new Array<string>().concat(this.routes[i].params);
-            const jj = matches.length;
-
-            for(j = 1; j < jj; j++) {
-                const name = paramNames.shift();
-                if(!name) {
-                    throw new Error('No param name found');
-                }
-                params.set(name, matches[j]);
-            }
-
             results.push({
-                originalRoute: this.routes[i].originalRoute,
+                route,
+                originalRoute: route.original,
                 params,
                 path
             });
@@ -254,7 +94,7 @@ class Pointer {
     }
 
     public clear() {
-        this.routes.splice(0, this.routes.length);
+        this.routes.clear();
     }
 }
 

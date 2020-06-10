@@ -166,6 +166,7 @@ test('it should call onBefore() with match', async () => {
 
     assert.deepEqual(onBeforeCallback.args[0][0], {
         originalRoute: '/books/{id:[0-9]+}',
+        route: router.pointer.getOrFail('/books/{id:[0-9]+}'),
         params: new Map().set('id', '100'),
         path: '/books/100',
         query: new Map()
@@ -192,9 +193,7 @@ test('it should cancel redirection if pushState/replaceState is called inside on
 
     const router = await createRouter(history, {
         callback: indexCallback,
-        onBefore: (_MATCH, replaceState) => {
-            replaceState('login');
-        },
+        onBefore: (_MATCH, replaceState) => replaceState('login'),
         path: '/',
     }, {
         callback: loginCallback,

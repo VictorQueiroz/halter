@@ -127,13 +127,16 @@ class Router extends EventEmitter {
         return route;
     }
 
-    public resolve(name: string, params?: IRouteInputParams, query?: IRouteInputQuery): string {
+    public resolve(name: string, params?: IRouteInputParams, query?: IRouteInputQuery): string | undefined {
         const route = this.routes.get(name);
         if(!route) {
-            return '';
+            return undefined;
         }
         const match = this.pointer.getOrFail(route.path);
         let resolved = match.resolve(params);
+        if(typeof resolved === 'undefined') {
+            return undefined;
+        }
         if(query) {
             const object: { [s: string]: string; } = {};
             for(const [key, value] of query) {
@@ -150,6 +153,9 @@ class Router extends EventEmitter {
      * the whole process was performed.
      */
     public async init() {
+        if(this.pending) {
+            return this.pending.then(() => this);
+        }
         this.pending = new Promise((resolve) => {
             this.unlistenHistory = this.history.listen((location) => {
                 this.onChangePath(location.pathname + location.search);
@@ -157,7 +163,11 @@ class Router extends EventEmitter {
             const {location} = this.history;
             resolve(this.onChangePath(location.pathname + location.search));
         });
-        await this.pending;
+        try {
+            await this.pending;
+        } finally {
+            delete this.pending;
+        }
         return this;
     }
 

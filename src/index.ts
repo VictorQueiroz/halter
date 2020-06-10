@@ -1,7 +1,3 @@
-import Pointer from './pointer';
-import Router from './router';
-
-export {
-    Pointer,
-    Router
-};
+export { default as Pointer } from './pointer';
+export { default as Route } from './route';
+export { default as Router } from './router';
