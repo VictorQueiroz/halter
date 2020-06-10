@@ -1,8 +1,11 @@
 import { assert } from 'chai';
 import { createMemoryHistory, History } from 'history';
-import { test } from 'sarg';
+import { Suite } from 'sarg';
 import sinon from 'sinon';
 import Router, { IRouteOnParameter } from '../src/router';
+
+const suite = new Suite();
+const {test} = suite;
 
 function createRouter(history: History, ...routes: IRouteOnParameter[]) {
     const router = new Router(history);
@@ -264,3 +267,5 @@ test('pushState(): it should throw for unexistent routes', async () => {
 
     router.destroy();
 });
+
+export default suite;

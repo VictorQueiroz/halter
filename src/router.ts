@@ -73,6 +73,13 @@ class Router extends EventEmitter {
     }
 
     /**
+     * Trigger state change without touching the history itself.
+     */
+    public reload() {
+        this.onChangePath(this.getLocationPath());
+    }
+
+    /**
      * Listen to valid changes on route. Meaning, that it'll be called whenever you
      * change from one route to another.
      * @param callback Callback that will be called when route change is received
@@ -157,11 +164,10 @@ class Router extends EventEmitter {
             return this.pending.then(() => this);
         }
         this.pending = new Promise((resolve) => {
-            this.unlistenHistory = this.history.listen((location) => {
-                this.onChangePath(location.pathname + location.search);
+            this.unlistenHistory = this.history.listen(() => {
+                this.onChangePath(this.getLocationPath());
             });
-            const {location} = this.history;
-            resolve(this.onChangePath(location.pathname + location.search));
+            resolve(this.onChangePath(this.getLocationPath()));
         });
         try {
             await this.pending;
@@ -199,6 +205,11 @@ class Router extends EventEmitter {
      */
     public replaceState(name: string, params?: IRouteInputParams, query?: IRouteInputQuery) {
         return this.changeState(name, params, query, StateChangeType.Replace);
+    }
+
+    private getLocationPath() {
+        const {location} = this.history;
+        return location.pathname + location.search;
     }
 
     private async executeOnBefore(onBefore: OnBeforeFunction) {

@@ -1,9 +1,9 @@
 {
   "devDependencies": {
-    "@types/chai": "^4.1.7",
+    "@types/chai": "^4.2.0",
     "@types/history": "^4.7.2",
     "@types/node": "^11.9.4",
-    "@types/sinon": "^7.0.6",
+    "@types/sinon": "^7.0.13",
     "chai": "^4.2.0",
     "history": "^4.7.2",
     "nyc": "^15.1.0",
