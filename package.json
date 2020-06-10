@@ -29,7 +29,7 @@
   "license": "MIT",
   "name": "halter",
   "description": "Simple and lightweight but robust router for your web application",
-  "version": "2.5.5",
+  "version": "2.5.6",
   "directories": {
     "test": "test"
   },

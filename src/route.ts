@@ -81,7 +81,7 @@ export default class Route {
         let delta = 0;
         for(const p of list) {
             const value = params?.get(p.name) || '';
-            if(!p.paramMatcher.test(value)) return undefined;
+            if(!p.paramMatcher.test(value) || typeof value !== 'string') return undefined;
             final += p.previousContents;
             final += value;
             delta += p.length - value.length;

@@ -123,6 +123,16 @@ suite.test('Route#resolve: it should resolve optional parameters', () => {
     expect(route2.parse('/tabs/*/modified_at')).to.be.deep.equal(undefined);
 });
 
+suite.test('Route#resolve: it should not resolve if params have invalid type', () => {
+    const route2 = new Route('/users/{userId:[0-9]+}');
+    expect(route2.resolve(new Map<string, any>([
+        ['userId', 2]
+    ]))).to.be.equal(undefined);
+    expect(route2.resolve(new Map<string, string>([
+        ['userId', '2']
+    ]))).to.be.equal('/users/2');
+});
+
 suite.test('Route#resolve: it should resolve routes with deep a-z params', () => {
     expect(new Route(
         '/users/{alias:[a-zA-Z\-]+}/{id:[a-z0-9]+}/comments/{commentId:[a-z0-9]+}'
