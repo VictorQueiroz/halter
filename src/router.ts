@@ -144,7 +144,7 @@ class Router extends EventEmitter {
         if(typeof resolved === 'undefined') {
             return undefined;
         }
-        if(query) {
+        if(query?.size) {
             const object: { [s: string]: string; } = {};
             for(const [key, value] of query) {
                 object[key] = value;

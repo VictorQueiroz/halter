@@ -241,6 +241,23 @@ test('resolve(): it should resolve route path according to arguments', async () 
     ));
 });
 
+test('resolve(): it should only append query when query parameter is present and with more than 0 attributes', async () => {
+    const history = createMemoryHistory();
+    history.push('/');
+
+    const router = await createRouter(history, {
+        callback: () => undefined,
+        name: 'app.index',
+        path: '/users/{username:[a-z0-9\-]+}'
+    });
+
+    assert.equal('/users/victor-queiroz', router.resolve(
+        'app.index',
+        new Map().set('username', 'victor-queiroz'),
+        new Map()
+    ));
+});
+
 test('pushState(): it should push resolved state to history', async () => {
     const history = createMemoryHistory();
     history.push('/');
